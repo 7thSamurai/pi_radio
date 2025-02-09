@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Audio.hpp"
+#include <memory>
 
 class Output;
 

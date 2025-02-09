@@ -10,7 +10,7 @@ public:
 
     inline void setcontrolBlockAddress(std::uint32_t address) 
     {
-        regs->cbAddr = addr;
+        regs->cbAddr = address;
     }
 
     inline volatile std::uint32_t &getcontrolBlockAddress() const 

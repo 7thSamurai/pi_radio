@@ -6,11 +6,11 @@ SRC = $(wildcard src/*.cpp)
 OBJS = $(SRC:.cpp=.o)
 
 fm: $(OBJS)
-    $(CXX) $(CXX_FLAGS) $(OBJS) src/mailbox.c -o $@ $(LD_FLAGS)
+	$(CXX) $(CXX_FLAGS) $(OBJS) src/mailbox.c -o $@ $(LD_FLAGS)
 
 .cpp.o:
-    $(CXX) $(CXX_FLAGS) -c $< -o $@
+	$(CXX) $(CXX_FLAGS) -c $< -o $@
 
 .PHONY: clean
 clean:
-    rm -rf fm src/*.o
+	rm -rf fm src/*.o

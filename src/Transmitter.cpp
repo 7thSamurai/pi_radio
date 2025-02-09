@@ -62,9 +62,9 @@ void Transmitter::transmitDma(Audio &audio, float frequency, float bandwidth, un
         output = std::make_unique<Output>(clockDivisor);
 
     Memory memory(
-        (2 * buffer_size * sizeof(Dma::ControlBlock)) + // dma_cb
-        (buffer_size * sizeof(std::uint32_t)) +         // clock_div
-        sizeof(std::uint32_t)                           // pwm_fifo_data
+        (2 * bufferSize * sizeof(Dma::ControlBlock)) + // dma_cb
+        (bufferSize * sizeof(std::uint32_t)) +         // clock_div
+        sizeof(std::uint32_t)                          // pwm_fifo_data
     );
 
     Pwm pwm(audio.getSampleRate());
@@ -81,7 +81,7 @@ void Transmitter::transmitDma(Audio &audio, float frequency, float bandwidth, un
     // Setup the DMA control blocks
     std::size_t offset = 0;
     for (std::size_t i = 0; i < bufferSize; i++) {
-        clock_div[i] = (0x5a << 24) | ((clockDivisor - static_cast<std::int32_t>(std::round(samples[i] * divisorRange))) & 0xffffff);
+        clockDiv[i] = (0x5a << 24) | ((clockDivisor - static_cast<std::int32_t>(std::round(samples[i] * divisorRange))) & 0xffffff);
 
         // Update the Sample
         dmaCb[offset].transferInfo = (1 << 26) | (1 << 3);
@@ -89,7 +89,7 @@ void Transmitter::transmitDma(Audio &audio, float frequency, float bandwidth, un
         dmaCb[offset].destAddr     = peripherals.getPhysicalAddress(&output->getDivisor());
         dmaCb[offset].transferLen  = sizeof(std::uint32_t);
         dmaCb[offset].stride       = 0;
-        dmaCb[offset].next_Cb      = memory.getPhysicalAddress(&dmaCb[offset + 1]);
+        dmaCb[offset].nextCb      = memory.getPhysicalAddress(&dmaCb[offset + 1]);
         offset++;
 
         // Delay until time for the next Sample
@@ -98,12 +98,12 @@ void Transmitter::transmitDma(Audio &audio, float frequency, float bandwidth, un
         dmaCb[offset].destAddr     = peripherals.getPhysicalAddress(&pwm.getFifoInput());
         dmaCb[offset].transferLen  = PWM_WRITES_PER_SAMPLE * sizeof(std::uint32_t);
         dmaCb[offset].stride       = 0;
-        dmaCb[offset].nextCb       = memory.getPhysicalAddress((i < buffer_size-1) ? &dmaCb[offset + 1] : dmaCb);
+        dmaCb[offset].nextCb       = memory.getPhysicalAddress((i < bufferSize-1) ? &dmaCb[offset + 1] : dmaCb);
         offset++;
     }
 
     *pwmFifoData = 0x00000000;
-    Dma dma(memory.getPhysicalAddress(dma_cb), dmaChannel);
+    Dma dma(memory.getPhysicalAddress(dmaCb), dmaChannel);
     std::this_thread::sleep_for(std::chrono::microseconds(BUFFER_TIME / 4));
 
     // Clean up routine
@@ -122,18 +122,18 @@ void Transmitter::transmitDma(Audio &audio, float frequency, float bandwidth, un
         while (!stopped) {
             // Refill the samples
             samples.clear();
-            audio.readSamples(buffer_size, samples);
+            audio.readSamples(bufferSize, samples);
             if (samples.empty())
                 break;
 
             offset = 0;
             for (std::size_t i = 0; i < samples.size(); i++) {
                 // Wait until ready to add new samples
-                while (i == ((dma.getcontrolBlockAddress() - memory.getPhysicalAddress(dma_cb)) / (2 * sizeof(Dma::ControlBlock)))) {
+                while (i == ((dma.getcontrolBlockAddress() - memory.getPhysicalAddress(dmaCb)) / (2 * sizeof(Dma::ControlBlock)))) {
                     std::this_thread::sleep_for(std::chrono::microseconds(1000));
                 }
 
-                clock_div[i] = (0x5a << 24) | ((clock_divisor - static_cast<std::int32_t>(std::round(samples[i] * divisorRange))) & 0xffffff);
+                clockDiv[i] = (0x5a << 24) | ((clockDivisor - static_cast<std::int32_t>(std::round(samples[i] * divisorRange))) & 0xffffff);
                 offset += 2;
             }
         }
